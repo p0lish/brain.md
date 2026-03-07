@@ -1,0 +1,10 @@
+# Don't include personal brain data
+weights/
+habits/
+mutations/
+reflexes/
+skills/
+
+# Keep the scripts and docs
+!scripts/
+!SKILL.md
