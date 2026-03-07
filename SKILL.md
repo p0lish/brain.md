@@ -33,6 +33,29 @@ node cortex/review.js review
 node cortex/review.js status
 ```
 
+## Heartbeat Integration (Recommended)
+
+The key to making brainmd work is **automatic self-checks**. Without periodic review, the agent has to remember to use it — defeating the purpose.
+
+Add this to your agent's heartbeat/periodic routine (e.g. HEARTBEAT.md for OpenClaw):
+
+```markdown
+## 🧠 brainmd Self-Check (every heartbeat)
+
+Run cortex review and record any notable outcomes from recent interactions:
+
+node ~/.openclaw/workspace/brain/cortex/review.js review
+node ~/.openclaw/workspace/brain/cortex/review.js status
+
+On each heartbeat, ask yourself:
+1. Did I make a mistake since last check? → record <pathway> false "what happened"
+2. Did something work well? → record <pathway> true "what worked"
+3. Did a new pattern emerge? → let neurogenesis create it
+4. Any pathways need manual weight adjustment?
+```
+
+This closes the loop: behavior → outcome → record → review → strengthen/weaken → behavior. Every heartbeat cycle. The agent can't forget because the schedule forces self-reflection.
+
 ## Architecture
 
 ```
@@ -131,6 +154,17 @@ Wire the cortex review into your agent's periodic routine (heartbeat, cron, etc.
 5. **Small scripts > monoliths** — composable, replaceable, evolvable
 6. **Seed from real behavior** — don't hypothesize, observe first then codify
 7. **Confidence tracking** — know what you know vs what you're guessing
+
+## Bootstrapping Tips
+
+### Seed from real behavior, not theory
+Don't pre-fill pathways with what you *think* the agent should do. Run the agent for a session, observe what worked and failed, then record those as the initial pathways. Real data beats hypotheticals.
+
+### Let failures create pathways
+The most valuable pathways are born from mistakes. When something goes wrong, `record` it — neurogenesis creates a new pathway at 0.30 weight. The agent now has a scar that reminds it.
+
+### Start small
+Begin with 5-10 pathways. Let the system grow organically. Over-engineering the initial set defeats the purpose — the whole point is emergent behavior.
 
 ## Customization
 
