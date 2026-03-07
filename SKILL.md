@@ -1,5 +1,5 @@
 ---
-name: brain
+name: brainmd
 description: "Neuroplastic self-modifying runtime for AI agents. Creates a file-based 'brain' that learns from interactions: reflexes (fast-path responses), habits (learned patterns), weighted pathways (reinforcement), and a cortex (self-review loop). Inspired by C64 self-modifying code. Use when: setting up adaptive agent behavior, creating learning loops, building persistent behavioral memory, or making an agent that improves over time."
 ---
 
