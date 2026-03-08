@@ -1,6 +1,6 @@
 # 🧠 brainmd
 
-**Neuroplastic runtime for AI agents.** File-based behavioral learning inspired by C64 self-modifying code.
+**Neuroplastic runtime for AI agents.** File-based behavioral learning.
 
 An AI agent's memory resets every session. brainmd gives it scar tissue.
 
@@ -13,10 +13,6 @@ brainmd is a lightweight system that lets AI agents learn from their own behavio
 Every behavior becomes a **pathway** with a weight between 0 and 1. Pathways that succeed get stronger. Pathways that fail get weaker. Unused pathways decay. New situations create new pathways automatically (neurogenesis). Everything is logged.
 
 Think of it as a nervous system made of files.
-
-### The C64 parallel
-
-On the Commodore 64, programs could modify their own machine code at runtime — patching opcodes in memory while the program was running. No separation between code and data. brainmd does the same thing: an AI agent's behavioral rules are stored as mutable files that the agent itself reads, writes, and evolves.
 
 ## Architecture
 
