@@ -107,9 +107,13 @@ Every change is logged to `mutations/` with timestamp, type, and reason:
 
 The mutation log is the one immutable thing. It's your audit trail. Don't delete it.
 
-## Heartbeat Integration
+## Integration
 
-brainmd works best when wired into a periodic self-check. For [OpenClaw](https://github.com/openclaw/openclaw) agents, add this to your `HEARTBEAT.md`:
+brainmd has zero dependencies beyond Node.js. It works with any agent framework — or no framework at all.
+
+### With OpenClaw
+
+Add a self-check to your `HEARTBEAT.md`:
 
 ```markdown
 ## 🧠 brainmd Self-Check
@@ -122,6 +126,52 @@ Ask yourself:
 2. Did something work well? → record it
 3. New pattern emerging? → let neurogenesis handle it
 ```
+
+Also available as a skill on [ClawHub](https://clawhub.ai/skills/brainmd):
+```bash
+clawhub install brainmd
+```
+
+### With LangChain / CrewAI / AutoGPT
+
+Wire recording into your agent's task completion callback:
+
+```python
+import subprocess
+
+def on_task_complete(task, success, notes):
+    outcome = "true" if success else "false"
+    subprocess.run([
+        "node", "cortex/review.js", "record",
+        f"habit:{task.name}", outcome, notes
+    ])
+```
+
+Add `review.js review` to your agent loop or a cron job.
+
+### With any LLM API (OpenAI, Anthropic, etc.)
+
+1. Read `weights/pathways.json` and inject relevant pathways into your system prompt
+2. After each interaction, record outcomes via CLI
+3. Run `review` on a schedule (cron, webhook, timer)
+
+```bash
+# After a good interaction
+node cortex/review.js record "habit:concise-answers" true "User thanked for brevity"
+
+# After a bad one
+node cortex/review.js record "habit:concise-answers" false "User said answer was too long"
+
+# Periodic review (cron every 30min, hourly, whatever fits)
+node cortex/review.js review
+```
+
+### Without any AI at all
+
+brainmd is just a behavioral reinforcement tracker. You can use it for:
+- Personal habit tracking with weighted outcomes
+- Team process improvement (record what works, what doesn't)
+- Any system where you want patterns to emerge from data, not theory
 
 This closes the loop: **behavior → outcome → record → review → adjust → behavior**.
 
