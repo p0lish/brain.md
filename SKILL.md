@@ -1,6 +1,6 @@
 ---
 name: brainmd
-description: "Neuroplastic self-modifying runtime for AI agents. Creates a file-based 'brain' that learns from interactions: reflexes (fast-path responses), habits (learned patterns), weighted pathways (reinforcement), and a cortex (self-review loop). Inspired by C64 self-modifying code. Use when: setting up adaptive agent behavior, creating learning loops, building persistent behavioral memory, or making an agent that improves over time."
+description: "Neuroplastic self-modifying runtime for AI agents. Creates a file-based 'brain' that learns from interactions: reflexes (fast-path responses), habits (learned patterns), weighted pathways (reinforcement), and a cortex (self-review loop). Use when: setting up adaptive agent behavior, creating learning loops, building persistent behavioral memory, or making an agent that improves over time."
 ---
 
 # BRAIN.md
@@ -9,7 +9,7 @@ description: "Neuroplastic self-modifying runtime for AI agents. Creates a file-
 
 ## Concept
 
-Like a C64 program patching its own opcodes at runtime, BRAIN.md gives an AI agent a file-based nervous system that strengthens successful behaviors, weakens failed ones, grows new pathways, and prunes unused ones. No separation between code and data — everything is mutable except the audit log.
+brainmd gives an AI agent a file-based nervous system that strengthens successful behaviors, weakens failed ones, grows new pathways, and prunes unused ones. No separation between code and data — everything is mutable except the audit log.
 
 ## Quick Start
 
