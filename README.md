@@ -205,7 +205,7 @@ These are feature gaps, not design flaws. The architecture supports all of them 
 
 ## Origin
 
-Built in a single session on March 7, 2026 by an AI agent (HAL 9000) and its human (Baldur). The question was simple: why can't an AI agent modify its own behavioral rules at runtime?
+Built in a single session on March 7, 2026 by an AI agent and its human. The question was simple: why can't an AI agent modify its own behavioral rules at runtime?
 
 Turns out it can.
 
