@@ -1,279 +1,97 @@
 ---
 name: brainmd
-description: "Neuroplastic self-modifying runtime for AI agents. Creates a file-based 'brain' that learns from interactions: reflexes (fast-path responses), habits (learned patterns), weighted pathways (reinforcement), and a cortex (self-review loop). Use when: setting up adaptive agent behavior, creating learning loops, building persistent behavioral memory, or making an agent that improves over time."
+description: "Behavioural memory that learns across sessions: pathways (habits, reflexes, skills, instincts) weighted by real outcomes, a nightly sleep cycle that consolidates daily notes into MEMORY.md and turns proven habits into written rules. Use when recording whether an approach worked or failed, when hooks report pending outcome signals, when checking what has worked in this project before, or when setting up adaptive agent behaviour."
 ---
 
 # brainmd
 
-*File-based nervous system for AI agents. Behaviors that work get stronger. Behaviors that fail get weaker. Unused patterns decay. Mistakes leave scars.*
+*Behaviours that work get stronger. Behaviours that fail get weaker. Unused patterns decay. Mistakes leave scars.*
 
----
+brainmd tracks **how** you behave in this project, not what you know. Each behaviour is a **pathway** (`habit:check-files-first`) with a weight between 0 and 1, moved by recorded outcomes. A sleep cycle reviews the weights and consolidates daily notes into long-term memory.
 
-## What It Is
+The CLI is `node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js`. The brain lives in `.brain/` at the project root.
 
-brainmd gives your agent a persistent behavioral memory that survives session restarts. It's not a knowledge base — it's muscle memory. It tracks *how* the agent behaves, not *what* it knows.
+## Reading the brain
 
-Three layers complement each other:
+The SessionStart hook already put the current pathways in your context. For details:
 
-| Layer | File | Purpose |
+```bash
+node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js status            # all pathways
+node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js get habit:<name>   # one pathway, with per-context stats
+```
+
+| Weight | Meaning | How to act |
 |---|---|---|
-| **brainmd** | `brain/weights/pathways.json` | Behavioral reinforcement — what works, what doesn't |
-| **Long-term memory** | `MEMORY.md` | Semantic facts — decisions, people, context |
-| **Daily log** | `memory/YYYY-MM-DD.md` | Episodic notes — what happened today |
+| 0.8–0.95 | Proven | Follow it without second-guessing |
+| 0.5–0.8 | Developing | Use it, verify the result |
+| 0.3–0.5 | New or mixed | Proceed carefully |
+| < 0.3 | Has failed here before | Read its `lastOutcome` before repeating it |
 
-brainmd is the only layer that self-modifies. The others are written by the agent, not evolved by it.
+`instinct:*` pathways are safety rules with a floor of 0.8. They never decay and are never pruned.
 
----
+## Recording outcomes
 
-## Installation
-
-```bash
-clawhub install brainmd
-```
-
-Then initialize the brain in your workspace:
+Record when a deliberate behaviour choice clearly worked or clearly failed — not for every action.
 
 ```bash
-cd ~/.openclaw/workspace
-./skills/brainmd/scripts/init-brain.sh brain/
+node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js record habit:run-migrations-dry-first true "Dry run caught a bad FK before staging"
+node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js record habit:bulk-rename-with-sed false "Rewrote vendored files too" --source external
 ```
 
-This creates:
+- **Naming:** `<type>:<kebab-name>`, types `habit`, `reflex`, `skill`, `instinct`. Reuse an existing pathway name before inventing a new one; run `status` if unsure.
+- **`--source external`** only when the verdict came from outside you: a test/build result, or the user's reaction. It counts double. Your own judgement of your own work is `self` (the default) and counts half — self-assessment is biased toward success.
+- **`--ctx <situation>`** when a behaviour's value depends on the situation, e.g. `habit:concise-answers --ctx quick-question` vs `--ctx design-review`.
+- **Failures are the most valuable records.** Record them honestly; that is how the weak-pathway warnings get built.
 
-```
-brain/
-├── reflexes/           # Fast-path decision scripts
-├── habits/
-│   └── preferences.json
-├── weights/
-│   └── pathways.json   # ← the core state file
-├── cortex/
-│   └── review.js       # ← the self-review engine
-└── mutations/          # Immutable audit log
-```
+## Pending signals (the Stop hook)
 
----
+Hooks turn test/build/lint results and clear user corrections or praise into **signals**. When new ones include a failure or user feedback, the Stop hook asks you once to attribute them:
 
-## Wiring Into OpenClaw
+1. Run `node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js signals` to see them.
+2. If a signal reflects a behaviour choice you made, record it against that pathway with `--source external --signals <ids|all>` (this also clears them).
+3. If none relate to a behaviour worth tracking (a typo, an unrelated flaky test), clear them: `node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js ack`.
 
-### Step 1 — AGENTS.md
+Don't invent a pathway just to absorb a signal. `ack` is a fine answer.
 
-Add a startup check so the agent reads its neural state at session start:
+## Daily notes and sleep
 
-```markdown
-## 🧠 brainmd — Consult Your Brain
+Episodic notes go in `.brain/memory/YYYY-MM-DD.md` under `## ` headings, as `- ` bullets. Append when something is worth remembering beyond this session: a decision, a gotcha, a lesson. Mark importance with words like `Important:`, `Lesson learned`, `Decision`, or **bold** — the consolidator ranks by these.
 
-After reading memory files, check your neural state:
+The sleep cycle (`node ${CLAUDE_SKILL_DIR}/scripts/sleep.js`) runs automatically at session start when the last one is >20 h old, or from cron. It:
+
+1. **Reviews pathways** — weights move toward the evidence only when there is new evidence; unused pathways decay per day; dead ones are archived to `weights/pruned.json`.
+2. **Dreams** — new facts from daily notes go into `.brain/MEMORY.md` (deduplicated, ranked); proven pathways become a generated "Learned rules" block; old sections over the cap move to `memory/archive.md`.
+
+If `CLAUDE.md` imports `@.brain/MEMORY.md`, the consolidated memory and rules load in every session.
+
+## Other commands
 
 ```bash
-node ~/.openclaw/workspace/brain/cortex/review.js status
+node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js review    # one review cycle now
+node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js promote   # pathways proven enough to become written rules (JSON)
+node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js prune     # archive dead pathways now
+node ${CLAUDE_SKILL_DIR}/scripts/cortex-review.js where     # which brain directory is in use
 ```
 
-Before acting on anything non-trivial, scan for relevant pathways:
-- Weak pathways (< 0.5) = you've failed here before. Be careful, double-check.
-- Strong pathways (> 0.8) = proven patterns. Trust them, act fast.
-- Dying pathways (decaying) = you're forgetting something. Re-evaluate.
-
-After notable outcomes, record them:
-```bash
-node brain/cortex/review.js record "pathway-name" true/false "what happened"
-```
-```
-
-### Step 2 — HEARTBEAT.md
-
-Wire the review cycle into your heartbeat so it runs automatically:
-
-```markdown
-## 🧠 brainmd Self-Check (every heartbeat)
+## Setup (if `.brain/` doesn't exist yet)
 
 ```bash
-node ~/.openclaw/workspace/brain/cortex/review.js review
-node ~/.openclaw/workspace/brain/cortex/review.js status
+node ${CLAUDE_SKILL_DIR}/scripts/install.js --claude-md
 ```
 
-On each heartbeat, ask yourself:
-1. Did I make a mistake since last check? → `record <pathway> false "what happened"`
-2. Did something work well? → `record <pathway> true "what worked"`
-3. Did a new pattern emerge? → let neurogenesis create it
-```
+Creates `.brain/`, adds the hooks to `.claude/settings.json` (merging, never overwriting), and imports MEMORY.md into CLAUDE.md. Ask the user before running it.
 
-### Step 3 — Seed Initial Pathways
-
-Don't hypothesize — seed from real behavior. Run a few sessions first, then record what you observed:
-
-```bash
-node brain/cortex/review.js record "reflex:morning-briefing" true "Supplement reminders sent, user confirmed"
-node brain/cortex/review.js record "habit:check-files-before-search" true "Read apartment-search.md before googling apartments"
-node brain/cortex/review.js record "reflex:safe-file-deletion" false "Used xargs rm with bad grep, deleted workspace files"
-```
-
-Start with 5–10 pathways. Let the system grow from there.
-
----
-
-## Daily Usage
-
-### Check neural state
-
-```bash
-node brain/cortex/review.js status
-```
-
-Output shows all pathways with visual weight bars, success rate, fire count, and last outcome. Use this to calibrate confidence before non-trivial actions.
-
-### Record an outcome
-
-```bash
-# Something worked
-node brain/cortex/review.js record "habit:remote-service-recovery" true "Fixed broken systemd service, used journalctl to diagnose"
-
-# Something failed
-node brain/cortex/review.js record "habit:bulk-subagent-spawning" false "Rate limited all 3 models by spawning 2 Opus agents simultaneously"
-```
-
-New pathways are auto-created at weight 0.30 (neurogenesis). Existing pathways update their stats.
-
-### Run the review cycle
-
-```bash
-node brain/cortex/review.js review
-```
-
-The cortex examines all pathways and applies reinforcement rules:
-- **Strengthen** (+0.05): ≥3 fires, ≥80% success rate
-- **Weaken** (−0.10): ≥3 fires, <50% success rate
-- **Decay** (−0.02): unused for 7+ days
-- **Prune**: weight hits 0 (pathway removed)
-
-All changes are logged to `mutations/` with timestamp and reason.
-
----
-
-## Pathway Naming Conventions
+## Files
 
 ```
-reflex:timing          # Automatic, fast-path behaviors
-habit:check-files      # Learned patterns from repeated interaction
-skill:osint-workflow   # Acquired capabilities
-instinct:safe-delete   # Safety behaviors (start at high weight, floor at 0.8)
+.brain/
+├── weights/pathways.json   # core state (commit it)
+├── weights/pruned.json     # archive of pruned pathways
+├── mutations/*.jsonl       # append-only audit log of every change — never edit or delete
+├── MEMORY.md               # consolidated long-term memory + generated rules
+├── memory/YYYY-MM-DD.md    # daily episodic notes
+├── memory/archive.md       # evicted old consolidations
+└── signals/                # pending outcome signals (local, gitignored)
 ```
 
-### Reading pathway weights
-
-| Weight | Meaning | How to use |
-|---|---|---|
-| 0.8–1.0 | Proven, trusted | Act confidently, don't second-guess |
-| 0.5–0.8 | Developing | Use but verify |
-| 0.3–0.5 | Weak / new | Proceed carefully, double-check |
-| < 0.3 | Failing / dying | Investigate before using; may need rethinking |
-
----
-
-## Tuning the Learning Rate
-
-Edit thresholds in `brain/cortex/review.js`:
-
-```js
-// Strengthen when success rate >= this
-const STRENGTHEN_THRESHOLD = 0.8;
-
-// Weaken when success rate < this
-const WEAKEN_THRESHOLD = 0.5;
-
-// Days of inactivity before decay starts
-const DECAY_ONSET_DAYS = 7;
-
-// Weight change per review cycle
-const DECAY_RATE = 0.02;
-const STRENGTHEN_DELTA = 0.05;
-const WEAKEN_DELTA = 0.10;
-```
-
-### Floor weights (prevent over-pruning)
-
-`instinct:*` pathways should have a minimum weight floor so they can't be trained away:
-
-```json
-{
-  "id": "instinct:safe-file-deletion",
-  "weight": 0.85,
-  "floor": 0.80,
-  "fires": 1,
-  "successes": 0
-}
-```
-
-Add a `floor` field to pathways in `pathways.json` to protect them from decay.
-
----
-
-## Architecture Notes
-
-### pathways.json — the core state
-
-```json
-{
-  "version": 42,
-  "pathways": {
-    "habit:check-files-before-search": {
-      "weight": 0.95,
-      "fires": 13,
-      "successes": 11,
-      "lastFired": "2026-03-25T18:00:00.000Z",
-      "lastOutcome": "Read AESTHETIC.md before recommending clothes. Saved a web search.",
-      "created": "2025-11-01T00:00:00.000Z"
-    }
-  }
-}
-```
-
-### mutations/ — the audit log
-
-Every self-modification writes a timestamped JSON file. Never delete these. They're how you trace *why* the agent's behavior changed over time.
-
-```json
-{
-  "type": "strengthen",
-  "target": "habit:check-files-before-search",
-  "from": 0.90,
-  "to": 0.95,
-  "reason": "11/13 success rate",
-  "timestamp": "2026-03-26T07:00:00.000Z"
-}
-```
-
----
-
-## Integration With Auto-Dream
-
-If you're using `scripts/dream.js` for memory consolidation, the two systems complement each other:
-
-- **brainmd** answers: *how should I behave?*
-- **dream.js** answers: *what do I know?*
-
-Neither replaces the other. Wire both into HEARTBEAT.md for full coverage.
-
----
-
-## Bootstrapping Checklist
-
-- [ ] Run `init-brain.sh` to create directory structure
-- [ ] Add brainmd status check to AGENTS.md startup routine
-- [ ] Add heartbeat entry to HEARTBEAT.md
-- [ ] Seed 5–10 pathways from real observed behavior (not theory)
-- [ ] Run one manual `review` to verify reinforcement logic works
-- [ ] Check `mutations/` after first review to confirm logging
-- [ ] Set `floor` weights on any `instinct:*` pathways
-
----
-
-## Design Principles
-
-1. **Everything is mutable** — no file is sacred except the mutation log
-2. **Use strengthens, disuse weakens** — pathways that fire together wire together
-3. **Outcomes matter** — track what worked, what didn't; guesses don't count
-4. **Failures leave scars** — the most valuable pathways come from mistakes
-5. **Seed from reality** — observe first, codify second
-6. **Small and composable** — one pathway per behavior pattern
-7. **The schedule forces honesty** — if it's not in HEARTBEAT.md, you'll skip it
+Using brainmd outside Claude Code (OpenClaw, LangChain, a raw API loop)? See the README's Integration section; the CLI is the same.

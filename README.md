@@ -62,10 +62,11 @@ node cortex/review.js review
 ```
 
 The cortex will:
-- **Strengthen** pathways with >80% success rate (+0.05)
-- **Weaken** pathways with <50% success rate (-0.10)
-- **Decay** pathways unused for 7+ days (-0.02)
-- **Prune** pathways that hit weight 0
+- **Reinforce** — move each weight toward its evidence (a Beta posterior over outcomes), but only when there is *new* evidence since the last review, and with a step that grows with the amount of it. Re-running review never inflates a weight.
+- **Decay** pathways unused for 7+ days (−0.02 per day of disuse, applied once per day however often review runs)
+- **Prune** pathways at the minimum weight — archived to `weights/pruned.json`, never lost
+
+Outcomes from outside the agent (`--source external`: tests, the user's reaction) count double; the agent grading itself counts half.
 
 ### 4. Check status
 
@@ -95,21 +96,55 @@ node cortex/review.js status
 | `skill:` | Acquired capabilities | Slow | 0.10 |
 | `instinct:` | Safety behaviors (hardcoded high) | None | 0.80 |
 
+## Claude Code
+
+brainmd ships as a Claude Code skill with hooks, so the loop runs without the agent having to remember it.
+
+```bash
+# in your project
+git clone https://github.com/p0lish/brain.md .claude/skills/brainmd
+node .claude/skills/brainmd/scripts/install.js --claude-md
+```
+
+(Or clone to `~/.claude/skills/brainmd` and run `install.js --global`, then `install.js --init <project>` per project.)
+
+`install.js` creates `.brain/`, merges four hooks into `.claude/settings.json` (your existing settings and hooks are kept; re-running is safe; `--uninstall` removes only ours), and with `--claude-md` imports `.brain/MEMORY.md` into `CLAUDE.md`. See [`examples/settings.json`](examples/settings.json) for the result.
+
+| Hook | What it does |
+|---|---|
+| `SessionStart` | Runs a sleep cycle if the last one is >20 h old, then loads instincts, proven and weak pathways into context — the session-boundary problem, solved |
+| `PostToolUse` (Bash) | Test / build / lint / typecheck results become **external signals** |
+| `UserPromptSubmit` | Clear corrections ("no, I told you…") and clear praise become external signals |
+| `Stop` | When new signals include a failure or feedback, asks Claude once to attribute them to a pathway or `ack` them — credit assignment from real outcomes, not self-grading |
+
+Hooks are silent no-ops in projects without a `.brain/`, never block twice on the same signals, and never crash a session (`BRAINMD_DEBUG=1` logs their input to `.brain/signals/debug.jsonl`; `BRAINMD_STOP_NUDGE=0` turns the Stop nudge off).
+
+### Sleep
+
+`scripts/sleep.js` = cortex review + dream. It runs from the SessionStart hook when due; for a fixed schedule add a cron line:
+
+```
+30 3 * * *  cd /path/to/project && node .claude/skills/brainmd/scripts/sleep.js
+```
+
+`dream.js` folds new facts from `.brain/memory/YYYY-MM-DD.md` into `.brain/MEMORY.md` — incremental, deduplicated, ranked by signal markers — and regenerates a **Learned rules** block: proven pathways become written rules, repeatedly failing ones become warnings, pruned ones disappear. Old sections over the 300-line cap move to `memory/archive.md`.
+
 ## Mutation Log
 
-Every change is logged to `mutations/` with timestamp, type, and reason:
+Every change is appended to `mutations/YYYY-MM-DD.jsonl` (one JSON object per line) with timestamp, type, and reason:
 
 - `neurogenesis` — new pathway created
 - `strengthen` — weight increased (good outcomes)
 - `weaken` — weight decreased (bad outcomes)
 - `decay` — faded from disuse
-- `prune` — removed (weight hit 0)
+- `prune` — moved to `weights/pruned.json` (weight hit the minimum)
+- `outcome` — an outcome was recorded (with its source and context)
 
 The mutation log is the one immutable thing. It's your audit trail. Don't delete it.
 
 ## Integration
 
-brainmd has zero dependencies beyond Node.js. It works with any agent framework — or no framework at all.
+brainmd has zero dependencies beyond Node.js (18+). It works with any agent framework — or no framework at all.
 
 ### With OpenClaw
 
@@ -195,11 +230,11 @@ brainmd tracks *how* an agent behaves, not *what* it knows.
 
 ## Current Limitations
 
-- **Manual recording** — the agent has to decide when to log outcomes
+- **Recording still needs judgement** — hooks capture external signals, but mapping a signal to the behaviour that caused it is the agent's call
 - **No associative learning** — pathways don't influence each other yet
-- **No context sensitivity** — same pathway weight regardless of time/situation
-- **Simple cortex** — strengthen/weaken/decay is three if-statements
-- **Session boundary problem** — agent has to remember to load its brain
+- **Context is opt-in** — per-context stats exist (`--ctx`), but the headline weight is global
+- **Heuristic signal detection** — test-result and feedback parsing is regex-based and deliberately conservative
+- **Session boundary** — solved in Claude Code by the SessionStart hook; other frameworks still need to load the brain themselves
 
 These are feature gaps, not design flaws. The architecture supports all of them — they just need building.
 
