@@ -6,7 +6,7 @@ BRAIN_DIR="${1:-./brain}"
 
 echo "🧠 Initializing BRAIN.md at: $BRAIN_DIR"
 
-mkdir -p "$BRAIN_DIR"/{reflexes,habits,skills,weights,cortex,mutations}
+mkdir -p "$BRAIN_DIR"/{reflexes,habits,skills,weights,cortex,mutations,memory}
 
 # Create blank pathways file
 cat > "$BRAIN_DIR/weights/pathways.json" << 'EOF'
@@ -19,7 +19,10 @@ cat > "$BRAIN_DIR/weights/pathways.json" << 'EOF'
 EOF
 
 # Stamp creation time
-sed -i "s/\"created\": \"\"/\"created\": \"$(date -Iseconds)\"/" "$BRAIN_DIR/weights/pathways.json"
+# (portable: GNU and BSD sed disagree on -i)
+STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+sed "s/\"created\": \"\"/\"created\": \"$STAMP\"/" "$BRAIN_DIR/weights/pathways.json" > "$BRAIN_DIR/weights/pathways.json.tmp" \
+  && mv "$BRAIN_DIR/weights/pathways.json.tmp" "$BRAIN_DIR/weights/pathways.json"
 
 # Create blank preferences
 cat > "$BRAIN_DIR/habits/preferences.json" << 'EOF'
@@ -38,6 +41,12 @@ if [ -f "$SCRIPT_DIR/scripts/cortex-review.js" ]; then
   cp "$SCRIPT_DIR/scripts/cortex-review.js" "$BRAIN_DIR/cortex/review.js"
   chmod +x "$BRAIN_DIR/cortex/review.js"
 fi
+
+# Copy the dream (memory consolidation) and sleep scripts next to the cortex.
+# They require ./cortex-review.js, so the cortex is also copied under that name.
+for f in cortex-review.js dream.js sleep.js; do
+  [ -f "$SCRIPT_DIR/scripts/$f" ] && cp "$SCRIPT_DIR/scripts/$f" "$BRAIN_DIR/cortex/$f"
+done
 
 # Copy reflex templates
 if [ -f "$SCRIPT_DIR/scripts/reflex-timing.js" ]; then

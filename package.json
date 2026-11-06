@@ -1,0 +1,9 @@
+{
+  "name": "brainmd",
+  "version": "0.2.0",
+  "description": "Neuroplastic runtime for AI agents. File-based behavioural learning.",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "bin": { "brainmd": "scripts/cortex-review.js" },
+  "scripts": { "test": "node --test test/*.test.js" }
+}
